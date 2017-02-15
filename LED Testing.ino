@@ -51,7 +51,10 @@ void pixelRing :: dimRing (int stepNum, int steps){ //Dims the entire ring
 #define PIXEL_TYPE WS2812
 
 uint32_t beaconArray[RING_COUNT + PIXEL_COUNT] = {0};
+uint32_t auroraArray[RING_COUNT + PIXEL_COUNT + 10] = {0}; //6 total colors, 
+
 int lightCase = 0; //Case 0 is beacon, 1 is aurora, 2 is weather 
+uint32_t colorReceived; //The color picked up
 
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);
@@ -75,11 +78,16 @@ void loop() {
 
 void gotColorUpdate(const char *name, const char *data) {
 
-	if(lightCase == 2){
-		lightCase = 0;
-	}
-	else{
-		lightCase++;
+	String str = String(data);
+    	char strBuffer[40] = "";
+    	str.toCharArray(strBuffer, 40);
+    	colorFromID = strtok(strBuffer, "~");
+    	colorRecieved = atof(strtok(NULL, "~"));
+
+    // DEBUG
+    	String sColorRecieved = String(colorRecieved);
+    	Particle.publish("Color_Recieved", System.deviceID() + "~" + sColorRecieved);
+	colorChange();
 }
 
 void update(){
@@ -97,3 +105,6 @@ void update(){
 			}
 			
 }
+void updateBeacon(){
+	
+	
