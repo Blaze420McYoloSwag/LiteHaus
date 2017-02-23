@@ -5,8 +5,7 @@
 
 class pixelRing: public Adafruit_NeoPixel {
     public:
-        pixelRing(uint16_t numPixels, uint8_t pin, uint16_t type)
-        : Adafruit_NeoPixel(numPixels,pin,type){};
+        pixelRing(uint16_t numPixels, uint8_t pin, uint16_t type);
         void ringShuffle();
         uint32_t dimStep(uint32_t color, int stepNum, int steps); //This reduces the inputted color
         void dimRing(int stepNum, int steps);
