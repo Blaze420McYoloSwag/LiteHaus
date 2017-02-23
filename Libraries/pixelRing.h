@@ -1,5 +1,5 @@
-#ifndef BEACON_H
-#define BEACON_H
+#ifndef PIXELRING_H
+#define PIXELRING_H
 
 #include Adafruit_Neopixel.h
 
