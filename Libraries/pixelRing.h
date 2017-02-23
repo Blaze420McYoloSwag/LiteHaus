@@ -1,7 +1,7 @@
 #ifndef PIXELRING_H
 #define PIXELRING_H
 
-#include Adafruit_Neopixel.h
+#include "Adafruit_Neopixel.h"
 
 class pixelRing: public Adafruit_NeoPixel {
     public:
