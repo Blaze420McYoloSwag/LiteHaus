@@ -65,22 +65,25 @@ void whileTouching() {
 	uint8_t satBright = 20;
 	CRGB color = red;
 
-    while (touchEvent != CapTouch::ReleaseEvent) {
-		satBright += 5;
-		color.saturation = satBright;
-		color.brightness = satBright;
+    	while (touchEvent != CapTouch::ReleaseEvent) {
+
 		if(satBright >= 255){
 			satBright = 20;
 			colorIndex +=1;
 			color = currentPalette[colorIndex % colors];		
-		}        
-	}
-	uint8_t pixelsLit = map(satBright,0,255,0,STRIP_LEDS+1);
-	for int(i = 0; i <= pixelsLit && i <= STRIP_LEDS;i++){
-		stripLeds[i] = color;
-	}
-	if(pixelsLit > STRIP_LEDS){
-		fill_solid(&ringLeds, RING_LEDS, color); //at max capacity, light up the whole beacon
+			}        
+	
+		uint8_t pixelsLit = map(satBright,0,255,0,STRIP_LEDS+1);
+		
+		for int(i = 0; i <= pixelsLit && i <= STRIP_LEDS;i++){
+			stripLeds[i] = color;
+			}
+		if(pixelsLit > STRIP_LEDS){
+			fill_solid(&ringLeds, RING_LEDS, color); //at max capacity, light up the whole beacon
+			}
+		satBright += 5;
+		color.saturation = satBright;
+		color.brightness = satBright;
 	}
 	fastLED.show();
 	beaconColor = color;
