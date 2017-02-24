@@ -13,6 +13,7 @@ CRGB red = CHSV( 0, 0, 0);
 CRGB green  = CHSV( 85, 0, 0);
 CRGB blue  = CHSV( 150, 0, 0);
 CRGB beaconColor = CHSV( 0, 0, 0);
+CRGB baseColor = CHSV( 0, 0, 0);
 
 uint8_t  colors = 3;
 uint32_t currentPalette =  [red,  green,  blue];
@@ -52,16 +53,16 @@ void gotColorUpdate(const char *name, const char *data) {
     char strBuffer[40] = "";
     str.toCharArray(strBuffer, 40);
     colorFromID = strtok(strBuffer, "~");
-    colorRecieved = atof(strtok(NULL, "~"));
+    baseColor = atof(strtok(NULL, "~"));
 
     // DEBUG
-    String sColorRecieved = String(colorRecieved);
+    String sColorRecieved = String(baseColor);
     Particle.publish("Color_Recieved", System.deviceID() + "~" + sColorRecieved);
 }
 
 void whileTouching() {
 	uint8_t colorIndex = 0;
-	uint8_t satBright = 0;
+	uint8_t satBright = 20;
 	CRGB color = red;
 
     while (touchEvent != CapTouch::ReleaseEvent) {
@@ -69,7 +70,7 @@ void whileTouching() {
 		color.saturation = satBright;
 		color.brightness = satBright;
 		if(satBright >= 255){
-			satBright = 0;
+			satBright = 20;
 			colorIndex +=1;
 			color = currentPalette[colorIndex % colors];		
 		}        
