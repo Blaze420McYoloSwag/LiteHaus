@@ -76,7 +76,7 @@ void whileTouching() {
 		}        
 	}
 	uint8_t pixelsLit = map(satBright,0,255,0,STRIP_LEDS+1);
-	for int(i = 0; i == pixelsLit || i == STRIP_LEDS;i++){
+	for int(i = 0; i <= pixelsLit && i <= STRIP_LEDS;i++){
 		stripLeds[i] = color;
 	}
 	if(pixelsLit > STRIP_LEDS){
