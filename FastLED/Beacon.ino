@@ -1,34 +1,38 @@
-#include "captouch.h"
-#include "FastLED.h"
+// This #include statement was automatically added by the Particle IDE.
+#include <FastLED.h>
+FASTLED_USING_NAMESPACE;
 
-#define RING_PIN    3
-#define RING_LEDS    64
+//The FastLED variables
+#define RING_PIN    D1
+#define RING_LEDS    24
 CRGB ringLeds[RING_LEDS];
-
-#define STRIP_PIN    3
-#define STRIP_LEDS    64
+#define STRIP_PIN    D0
+#define STRIP_LEDS    15
 CRGB stripLeds[STRIP_LEDS];
 
-CRGB red = CHSV( 0, 0, 0);
-CRGB green  = CHSV( 85, 0, 0);
-CRGB blue  = CHSV( 150, 0, 0);
-CRGB beaconColor = CHSV( 0, 0, 0);
-CRGB baseColor = CHSV( 0, 0, 0);
+//The fastLED color declarations
+const int  colors = 3;
+CHSV red = CHSV(0, 0 , 0);
+CHSV green  = CHSV(85, 0 , 0);
+CHSV blue  = CHSV(171, 0 , 0);
+CHSV currentPalette[colors] =  {red, green, blue};
 
-uint8_t  colors = 3;
-uint32_t currentPalette =  [red,  green,  blue];
+CHSV beaconColor; //The color beacon sent
+CHSV baseColor;  //The beacon color received
 
 
-CapTouch::Event touchEvent;
 
+char beaconString[40]; //the string being published
 
 uint8_t brightness = 254; //Global brightness assignment
+int button = D3; //The push button pin
 
 
 void setup() {
+    pinMode(button, INPUT_PULLDOWN);
 	delay(3000); // 3 second delay for recovery
-	Particle.subscribe("LampUpdate", gotColorUpdate, MY_DEVICES);
-	Touch.setup();
+
+
   	FastLED.addLeds<NEOPIXEL, RING_PIN>(ringLeds, RING_LEDS);
 	FastLED.addLeds<NEOPIXEL, STRIP_PIN>(stripLeds, STRIP_LEDS);
 
@@ -38,55 +42,62 @@ void setup() {
 
   
 void loop()
-{	
-	touchEvent = Touch.getEvent();
-  	if (touchEvent == CapTouch::TouchEvent) {
-		whileTouching();
-	}
-	update();
-	FastLED.show();
+{	if(digitalRead(button) == HIGH){
+        whileTouching();
+    }
 }
 
-void gotColorUpdate(const char *name, const char *data) {
-
-	String str = String(data);
-    char strBuffer[40] = "";
-    str.toCharArray(strBuffer, 40);
-    colorFromID = strtok(strBuffer, "~");
-    baseColor = atof(strtok(NULL, "~"));
-
-    // DEBUG
-    String sColorRecieved = String(baseColor);
-    Particle.publish("Color_Recieved", System.deviceID() + "~" + sColorRecieved);
-}
 
 void whileTouching() {
-	uint8_t colorIndex = 0;
-	uint8_t satBright = 20;
-	CRGB color = red;
+	
+	unsigned int colorIndex = 0; //Integer used to select applied color
+	unsigned int satBright = 0; //The initial brightness and saturation of the lights
+	CHSV color = green; //The first color
+	fill_solid(stripLeds, STRIP_LEDS, CRGB::Black);
+	fill_solid(ringLeds, RING_LEDS, CRGB::Black);
 
-    	while (touchEvent != CapTouch::ReleaseEvent) {
+    while (digitalRead(button) == HIGH) {
 
-		if(satBright >= 255){
-			satBright = 20;
-			colorIndex +=1;
-			color = currentPalette[colorIndex % colors];		
+		if(satBright > 250){
+		    ringFill(color.hue);
+		    fill_solid(stripLeds, STRIP_LEDS, CRGB::Black);
+		    fill_solid(ringLeds, RING_LEDS, CRGB::Black);
+			satBright = 0;
+			colorIndex ++;
+			color = currentPalette[colorIndex % colors];
+			
 			}        
 	
-		uint8_t pixelsLit = map(satBright,0,255,0,STRIP_LEDS+1);
+		uint8_t pixelsLit = map(satBright,0,250,0,STRIP_LEDS);
 		
-		for int(i = 0; i <= pixelsLit && i <= STRIP_LEDS;i++){
+		for (int i = 0; i <= pixelsLit && i <= STRIP_LEDS;i++){
 			stripLeds[i] = color;
 			}
-		if(pixelsLit > STRIP_LEDS){
-			fill_solid(&ringLeds, RING_LEDS, color); //at max capacity, light up the whole beacon
-			}
-		satBright += 5;
+
+
 		color.saturation = satBright;
-		color.brightness = satBright;
+		color.value = satBright;
+		satBright += 15;
+		FastLED.show();
+		delay(60);
+		now = millis();
 	}
-	fastLED.show();
+	FastLED.show();
 	beaconColor = color;
-	String sColor = String(beaconColor);
-	Particle.publish("colorUpdate", System.deviceID() + "~" + sColor, 60, PRIVATE);
+	fill_solid(stripLeds, STRIP_LEDS, CRGB::Black);
+	fill_solid(ringLeds, RING_LEDS, CRGB::Black);
+	sprintf(publishString, "%u:%u:%u",beaconColor.hue,beaconColor.saturation,beaconColor.value);
+    Spark.publish("Color: ",publishString);
+    lastTime = now;
+
+}
+
+
+void ringFill(int colorHue){ //This function lights up the beacon when the colors are maxed
+
+    for(int i = 0; i <= 255; i++){
+        fill_solid(ringLeds, RING_LEDS, CHSV(colorHue,255,i));
+        FastLED.show();
+        delay(5);
+    }
 }
