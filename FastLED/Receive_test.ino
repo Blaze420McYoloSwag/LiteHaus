@@ -6,6 +6,7 @@ int receivedHue = 0;
 int receivedSaturation = 0;
 int receivedValue = 0;
 
+String receivedID;
 CHSV baseColor;
 
 void setup() {
@@ -35,8 +36,7 @@ void ColorUpdate(const char *name, const char *data) {
 
     }
     // DEBUG
-    String sColorRecieved = String(colorRecieved);
-    Particle.publish("Color_Recieved", System.deviceID() + "~" + receivedHue + "~" + receivedSaturation + "~" receivedValue);
+    Particle.publish("Color_Recieved", System.deviceID() + "~" + receivedHue + "~" + receivedSaturation + "~" + receivedValue);
     // END DEBUG
-    baseColor = CHSV(receivedHue, receivedSaturation, receivedValue)
+    baseColor = CHSV(receivedHue, receivedSaturation, receivedValue);
 }
