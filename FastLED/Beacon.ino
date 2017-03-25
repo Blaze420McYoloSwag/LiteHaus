@@ -11,7 +11,7 @@ CRGB ringLeds[RING_LEDS]; //Gotta use CRGB because FastLED won't auto convert fr
 CHSV HSVRing[RING_LEDS]; //All the real magic happens to this array
 
 #define STRIP_PIN    D0
-#define STRIP_LEDS    15
+#define STRIP_LEDS    16
 CRGB stripLeds[STRIP_LEDS]; //Same situation as the ring stuff above
 //CHSV HSVStrip[STRIP_LEDS];
 
@@ -32,22 +32,23 @@ CHSV baseColor = CHSV(0,0,0);  //The beacon color received
 /*
 __________________________Communication Variables__________________________
 */
-char beaconString[40]; //the string being published
 String selfName = "Tim"; //The name of this device
 String otherName = "Bonnie"; //The name of the device you're listening to
-
+char publishString [64]; //the string being published
 /*
 __________________________Misc Variables__________________________
 */
 const int button = D3; //The push button pin
+const int potPin = A0; //The pin with the brightness potentiometer attached.
 uint8_t brightness = 254; //Global brightness assignment
 uint8_t baseLedsLit; //The current number of lit LEDS
-uint8_t whileDelay = 4; //delay used in the while loop, in ms (Zero might mess with the wifi if held too long)
+uint8_t whileDelay = 8; //delay used in the while loop, in ms (Zero might mess with the wifi if held too long)
+uint8_t extinguishValue = 20; //Cut off the light here before things get weird.
 
-unsigned long decayRate = 11500; //decay rate in MS. a fully lit beacon decays to zero in a bit more than 8 hours.
+unsigned long decayRate = 7500; //decay rate in MS (11500). a fully lit beacon decays to zero in a bit more than 8 hours.
 unsigned long decayUpdate = 0;
 
-unsigned long spinRate = 210; //spin rate in MS. ideally a full rotation happens every 5 seconds or so
+unsigned long spinRate = 250; //spin rate in MS. ideally a full rotation happens every 5 seconds or so
 unsigned long spinUpdate = 0;
 
 /*
@@ -55,14 +56,20 @@ __________________________Function Declarations__________________________
 */
 void beaconFill(NSFastLED::CHSV color); //This function fills the beacon with various colors based on the input beacon color calculated
 void beaconSpin(); //This function spins the beacon colors
+void ColorUpdate(const char *name, const char *data);
 
+/*
+__________________________Timer Declarations__________________________
+*/
+Timer decayTimer(decayRate, colorDecay);
+Timer spinTimer (spinRate, beaconSpin);
 /*
 __________________________The Big Show__________________________
 */
 void setup() {
     pinMode(button, INPUT_PULLDOWN); //Push button (for now... muhaahahaha)
 	delay(3000); // 3 second delay for recovery
-    Particle.subscribe("Beacon Update", ColorUpdate, MY_DEVICES); //Subscribe to the updates
+    Particle.subscribe("Beacon_Update",ColorUpdate); //Subscribe to the updates
 
   	FastLED.addLeds<NEOPIXEL, RING_PIN>(ringLeds, RING_LEDS); //initalize the ring
 	FastLED.addLeds<NEOPIXEL, STRIP_PIN>(stripLeds, STRIP_LEDS); //initialize the strip
@@ -76,9 +83,12 @@ void setup() {
 	    }
 	    ringLeds[RING_LEDS - 1] = tempColor;
 	    FastLED.show();
+	    delay(50); //slow the spin a bit
 	}
   	// set master brightness control
   	FastLED.setBrightness(brightness);
+  	decayTimer.start();
+  	spinTimer.start();
 }
 
 void loop()
@@ -87,18 +97,14 @@ void loop()
         delay(50); //bullshit debounce delay
         whileTouching(); //this badboy runs while the 
     }
-    if((decayUpdate + decayRate) < millis()){  //Check if enough time has passed to decay the lights
-        colorDecay(); //the function to decay the colors (duh)
-        decayUpdate = millis();
-    }
-    if((spinUpdate + spinRate) < millis()){  //Check if enough time has passed to decay the lights
-        beaconSpin(); //the function to spin the beacon
-        spinUpdate = millis();
-    }
-    if(HSVRing[0].value){
+    if(beaconColor.value > extinguishValue){
         hsv2rgb_rainbow( HSVRing, ringLeds, RING_LEDS); // convert the HSV array to the RGB array (if the beacon is still lit)
     }
-    
+    else{
+        fill_solid(ringLeds, RING_LEDS, CRGB::Black);
+    }
+    brightness = map(analogRead(potPin),0,4096,0,254); // set the brightness
+    FastLED.setBrightness(brightness);
     FastLED.show(); //Light the beacon
 }
 
@@ -146,9 +152,9 @@ void whileTouching() {
 	beaconColor = color; //assign the final color to beacon
 	beaconFill(color); //fill the beacon accordingly
 	
-	char publishString [64];
+	
 	sprintf(publishString, "%u~%u~%u",beaconColor.hue,beaconColor.saturation,beaconColor.value);
-    Spark.publish("Beacon Update", String(selfName) + "~" + publishString); //Publish the beacon color to the cloud
+    Particle.publish("Beacon_Update", String(selfName) + "~" + publishString); //Publish the beacon color to the cloud
 }
 
 
@@ -169,7 +175,8 @@ void colorDecay(){
     if(baseColor.value){ //test if the base is still lit
         baseColor.value--; //cut the brightness
     }
-    if(beaconColor.value){ //test if the beacon is still lit
+    
+    if(beaconColor.value > extinguishValue){ //test if the beacon is still lit
         beaconColor.value--; //decrement the inital beacon color brightness
         
         //make the entire ring array as bright as the initial beacon color
@@ -178,17 +185,26 @@ void colorDecay(){
         }
         
     }
-    baseLedsLit = map(baseColor.value,0,255,2,STRIP_LEDS); // figure out how many base LEDs are lit
+    else{
+        beaconColor.value = 0;
+    }
+
+    baseLedsLit = map(baseColor.value,0,254,2,STRIP_LEDS+1); // figure out how many base LEDs are lit
     fill_solid(stripLeds, STRIP_LEDS, CRGB::Black); //turn the beacon black
     fill_solid(stripLeds, baseLedsLit, baseColor); //write the relevant LEDs the color
+    sprintf(publishString, "%u~%u~%u",beaconColor.hue,beaconColor.saturation,beaconColor.value);
+    Particle.publish("Beacon_Update", String(selfName) + "~" + publishString); //Publish the beacon color to the cloud
 }
 
 void beaconFill(NSFastLED :: CHSV color){ //Fills the ring LED's with the HSV array made from the beacon color sent
     fill_solid(HSVRing, RING_LEDS, color);
     uint8_t hue = color.hue;
-    for (int i = 1; i < RING_LEDS/2; i++){ //this tweaks the hues around the ring
-        HSVRing[i].hue = hue+i;
-        HSVRing[RING_LEDS-i].hue = hue + i;
+    uint8_t sat = color.saturation;
+    for (int i = 0; i < RING_LEDS/2; i++){ //this tweaks the hues around the ring
+        HSVRing[i].hue = hue - 3*i;
+        HSVRing[RING_LEDS -1- i].hue = hue -  3*i;
+        HSVRing[i].saturation= sat - 10*i;
+        HSVRing[RING_LEDS -1- i].saturation = sat -  10*i;
     }
 }
 void beaconSpin(){
@@ -220,10 +236,10 @@ void ColorUpdate(const char *name, const char *data) { //The function to receive
         p = strtok(NULL,"~");
         receivedValue = atoi(p);
     }
-    // DEBUG
-    Particle.publish("Color_Recieved", selfName + "~" + receivedHue + "~" + receivedSaturation + "~" + receivedValue);
-    // END DEBUG
-    if(receivedID ==otherName ){
+    if(receivedID == otherName){
+        // DEBUG
+        Particle.publish("Color_Recieved", selfName + "~" + receivedHue + "~" + receivedSaturation + "~" + receivedValue);
+        // END DEBUG
         baseColor = CHSV(receivedHue, receivedSaturation, receivedValue);
     }
 }
